@@ -8,7 +8,8 @@ bool kp = false;
 void setup() {
   Serial.begin(9600);
   Serial.println("Program started"); 
-  
+
+  //Set pin modes
   //pinMode(interrupt_pin, INPUT);
 
   attachInterrupt(digitalPinToInterrupt(interrupt_pin),cycle_increment, RISING);
@@ -29,6 +30,7 @@ void loop() {
   } 
 }
 
+//Interrupt function
 void cycle_increment()
 {
     static unsigned long last_interrupt_time = 0;
