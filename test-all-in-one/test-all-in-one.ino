@@ -10,18 +10,10 @@ File myFile;
 Time t;
 //This string has to be logged via serial port if something went wrong
 String warningString;
-
-struct current_time
-{
-    int seconds;
-    int minutes;
-    int hours;
-    int day;
-    int month;
-    int cur_year;
-};
 String dateStr;
 String str;
+char file_name[10] = "asdsadasdasdasdaf";
+int string_len;
 
 //SD chip select
 const int chipSelect = 4;
@@ -56,13 +48,58 @@ void setup() {
   #ifdef DEBUG
   Serial.println("card initialized.");
   #endif
-
   
   //making file, starting from this day
   str = rtc.getDateStr();
   dateStr = dateStringPreparation(str);
-  myFile = SD.open(dateStr, FILE_WRITE);
-  //myFile.close();
+  Serial.print("dateStr: ");
+  Serial.println(dateStr);
+  string_len = dateStr.length() + 1;
+  Serial.print("string_len: ");
+  Serial.println(string_len);
+  
+  #ifdef DEBUG
+  Serial.println("Before toCharArray");
+  for(i=0; i<strlen(file_name); i++)
+  {
+    Serial.print(file_name[i]);
+  }
+  Serial.println();
+  #endif
+
+ 
+  dateStr.toCharArray(file_name, string_len);
+  
+  #ifdef DEBUG
+  Serial.println();
+  Serial.println("After toCharArray");
+  for(i=0; i<strlen(file_name); i++)
+  {
+    Serial.print(file_name[i]);
+  }
+  Serial.println();
+  Serial.print("file_name: ");
+  Serial.println(file_name);
+  Serial.print("dateStr:");
+  Serial.println(dateStr);
+  #endif
+  
+  myFile = SD.open(file_name, FILE_WRITE);
+  if(myFile)
+  {
+    #ifdef DEBUG
+      Serial.println("myFile OPEN OK");
+    #endif
+    myFile.close();
+  }
+  else
+  {
+    #ifdef DEBUG
+      Serial.println("Error opening myFile");
+    #endif
+  }
+  
+  myFile.close();
 
   t = rtc.getTime();
   last_min = t.min;
@@ -70,17 +107,23 @@ void setup() {
 }
 
 void loop() {
+
+
   // put your main code here, to run repeatedly:
+
   /*
   if(i2c_slow_down == 10)
   {
   */
+  /*
       t = rtc.getTime();
       i2c_slow_down = 0;
+      */
   /*    
   }
   */
   //If day is changed, then make a new log file
+  /*
   if(t.date != last_day) 
   {
     
@@ -91,6 +134,9 @@ void loop() {
     if(!myFile)
     {
         warningString += " SD file" + dateStr + " didn't open correctly ";
+        #ifdef DEBUG
+          Serial.println("SD file" + dateStr + " didn't open correctly");
+        #endif
     }
     last_min = t.min;
     last_day = t.date;
@@ -99,6 +145,11 @@ void loop() {
   delay(1000);  //DELETE LATER
   pomDan++;
   rtc.setDate(pomDan, 10, 2017);
+
+  delay(500);
+  
+*/
+
 }
 
 String dateStringPreparation(String str)
@@ -109,10 +160,15 @@ String dateStringPreparation(String str)
   //obrada stringa
   str.remove(2,1);
   str.remove(4,1);
+  str.remove(4,1);
+  str.remove(4,1);
   #ifdef DEBUG
   Serial.println("Modified string:");
+ 
   str+=".csv";
+
   Serial.println(str);
   #endif
+  return str;
 }
 
