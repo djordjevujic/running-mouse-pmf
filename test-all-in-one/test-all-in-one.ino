@@ -11,8 +11,7 @@ Time t;
 //This string has to be logged via serial port if something went wrong
 String warningString;
 String dateStr;
-String str;
-char file_name[10] = "asdsadasdasdasdaf";
+char file_name[30] = "asdsadasdasdasdaf";
 int string_len;
 
 //SD chip select
@@ -50,11 +49,14 @@ void setup() {
   #endif
   
   //making file, starting from this day
-  str = rtc.getDateStr();
-  dateStr = dateStringPreparation(str);
+  dateStr = rtc.getDateStr();
+  dateStr = dateStringPreparation(dateStr);
+  
   Serial.print("dateStr: ");
   Serial.println(dateStr);
+  
   string_len = dateStr.length() + 1;
+  
   Serial.print("string_len: ");
   Serial.println(string_len);
   
@@ -66,7 +68,6 @@ void setup() {
   }
   Serial.println();
   #endif
-
  
   dateStr.toCharArray(file_name, string_len);
   
@@ -115,22 +116,22 @@ void loop() {
   if(i2c_slow_down == 10)
   {
   */
-  /*
+
       t = rtc.getTime();
       i2c_slow_down = 0;
-      */
+ 
   /*    
   }
   */
   //If day is changed, then make a new log file
-  /*
+
   if(t.date != last_day) 
   {
-    
-    str = rtc.getDateStr();
-    dateStr = dateStringPreparation(str);
+    dateStr = rtc.getDateStr();
+    dateStr = dateStringPreparation(dateStr);
     myFile.close();
-    myFile = SD.open(dateStr, FILE_WRITE);
+    dateStr.toCharArray(file_name, string_len);
+    myFile = SD.open(file_name, FILE_WRITE);
     if(!myFile)
     {
         warningString += " SD file" + dateStr + " didn't open correctly ";
@@ -146,10 +147,7 @@ void loop() {
   pomDan++;
   rtc.setDate(pomDan, 10, 2017);
 
-  delay(500);
-  
-*/
-
+  delay(2000);
 }
 
 String dateStringPreparation(String str)
@@ -164,11 +162,9 @@ String dateStringPreparation(String str)
   str.remove(4,1);
   #ifdef DEBUG
   Serial.println("Modified string:");
- 
   str+=".csv";
-
   Serial.println(str);
   #endif
+  
   return str;
 }
-
