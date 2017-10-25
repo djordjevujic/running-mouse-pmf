@@ -11,7 +11,9 @@ Time t;
 //This string has to be logged via serial port if something went wrong
 String warningString;
 String dateStr;
-char file_name[30] = "asdsadasdasdasdaf";
+String full_date_str;
+
+char file_name[10] = "asds";
 int string_len;
 
 //SD chip select
@@ -21,7 +23,8 @@ int i;
 int i2c_slow_down = 0;
 uint8_t last_min;
 uint8_t last_day;
-int pomDan=0;
+int pomDan=1;
+int pomMes=1;
 
 void setup() {
   // put your setup code here, to run once:
@@ -47,10 +50,12 @@ void setup() {
   #ifdef DEBUG
   Serial.println("card initialized.");
   #endif
-  
+  /*POSLE OBRISATI*/
+  rtc.setDate(pomDan, pomMes, 2017);
+  /**************************************/
   //making file, starting from this day
-  dateStr = rtc.getDateStr();
-  dateStr = dateStringPreparation(dateStr);
+  full_date_str = rtc.getDateStr();
+  dateStr = dateStringPreparation(full_date_str);
   
   Serial.print("dateStr: ");
   Serial.println(dateStr);
@@ -88,7 +93,9 @@ void setup() {
   myFile = SD.open(file_name, FILE_WRITE);
   if(myFile)
   {
+    
     #ifdef DEBUG
+    myFile.println(full_date_str);
       Serial.println("myFile OPEN OK");
     #endif
     myFile.close();
@@ -102,13 +109,11 @@ void setup() {
   
   myFile.close();
 
-  t = rtc.getTime();
   last_min = t.min;
   last_day = t.date;
 }
 
 void loop() {
-
 
   // put your main code here, to run repeatedly:
 
@@ -127,9 +132,9 @@ void loop() {
 
   if(t.date != last_day) 
   {
-    dateStr = rtc.getDateStr();
-    dateStr = dateStringPreparation(dateStr);
-    myFile.close();
+    full_date_str = rtc.getDateStr();
+    dateStr = dateStringPreparation(full_date_str);
+ 
     dateStr.toCharArray(file_name, string_len);
     myFile = SD.open(file_name, FILE_WRITE);
     if(!myFile)
@@ -139,14 +144,45 @@ void loop() {
           Serial.println("SD file" + dateStr + " didn't open correctly");
         #endif
     }
+
+    myFile.println(full_date_str);
+    myFile.close();
+    
     last_min = t.min;
     last_day = t.date;
   }
   i2c_slow_down ++;
-  delay(1000);  //DELETE LATER
+ // delay(1000);  //DELETE LATER
   pomDan++;
-  rtc.setDate(pomDan, 10, 2017);
+  if(pomDan > 30)
+   {
+      pomDan = 1;
+      pomMes  ++;
+      if(pomMes > 12)
+        pomMes = 1;
+   }
+  rtc.setDate(pomDan, pomMes, 2017);
 
+  
+  Serial.print("Writing to ");
+  Serial.println(full_date_str);
+  
+  myFile = SD.open(file_name, FILE_WRITE);
+  
+  myFile.println("1,2,3");
+  myFile.println("4,5,6");
+  myFile.println("7,8,9");
+  
+  myFile.close();
+
+  myFile = SD.open(file_name, FILE_WRITE);
+  
+  myFile.println("10,11,12");
+  myFile.println("13,14,15");
+  myFile.println("16,17,18");
+  
+  myFile.close();
+  
   delay(2000);
 }
 
