@@ -1,6 +1,7 @@
-//Implementirati:
-/*
-    Napraviti posebnu datoteku gde se upisuju vec upisane minutaze, a pre svakog upisa trenutna minutaza poredi sa tom iz datoteke
+/* Name:    Djordje Vujic
+   Mail:    djordjevujic@yahoo.com
+   github:  djordjevujic
+   Title:   Code for testing mouse (animal) activity and logging data into SD card
 */
 #include <SPI.h>
 #include <SdFat.h>
@@ -19,8 +20,8 @@ DS3231  rtc(SDA, SCL);
 Time t;
 
 //Testing existence of minute string in case of power losing
-char str[16];    //Must hold one line as a field
-size_t n;       //Length of returned field with delimiter
+char str[16];     //Must hold one line as a field
+size_t n;         //Length of returned field with delimiter
 
 //This string has to be logged via serial port if something went wrong
 String warningString;
@@ -29,7 +30,8 @@ String full_date_str;
 String hour_minute;
 char file_name[10] = "asds";
 uint8_t string_len;
-bool file_exists = false;
+bool file_exists = false; //if file does not exist, then write date,
+// time and cycles sections at begin of sheet
 
 //SD chip select pin
 const int chipSelect = 4;
@@ -53,8 +55,10 @@ void setup() {
 #ifdef DEBUG
   Serial.begin(9600);
 #endif
-
   rtc.begin();
+
+  pinMode(LED_BUILTIN, OUTPUT);
+  //pinMode(button_pin, INPUT_PULLUP); // Enable internal pull-up resistor on pin 5
 
   attachInterrupt(digitalPinToInterrupt(interrupt_pin), cycle_increment, RISING);
 
@@ -80,9 +84,8 @@ void setup() {
 #endif
 }
 
-void loop() {
-
-  // put your main code here, to run repeatedly:
+void loop()
+{
   t = rtc.getTime();
 
   //If day is changed, then make a new log file
@@ -195,17 +198,19 @@ void loop() {
       last_min = t.min;
       myFile.close();
     }
-    cli();
-    result_old = result;
-    result = num_cycles;
-    sei();
-    if (result_old != result)
-    {
-      Serial.print("Number of cycles: ");
-      Serial.println(num_cycles);
-    }
   }
-
+  //-------------------------------------------
+  //Posle vratiti u if petlju minuta i optimizovati tu petlju (cli, sei) --> cli predugo zadrzava, moze to lepse
+  cli();
+  result_old = result;
+  result = num_cycles;
+  sei();
+  if (result_old != result)
+  {
+    Serial.print("Number of cycles: ");
+    Serial.println(num_cycles);
+  }
+  //-----------------------------------------------
 }
 
 //Interrupt function
@@ -246,7 +251,7 @@ String dateStringPreparation(String str)
   return str;
 }
 
-//Function for reading one filed from CSV file
+//Function for reading one field from CSV file
 size_t readField(File* file, char* str, size_t size, const char* delim) {
   char ch;
   size_t n = 0;
