@@ -9,7 +9,7 @@
 
 //include serial while debug mode is ON
 #define DEBUG 1
-#define EVERY_X_MINUTES 6
+#define EVERY_X_MINUTES 1
 
 //SD Card
 SdFat SD;
@@ -24,14 +24,13 @@ char str[16];     //Must hold one line as a field
 size_t n;         //Length of returned field with delimiter
 
 //This string has to be logged via serial port if something went wrong
-String warningString;
 String dateStr;
 String full_date_str;
 String hour_minute;
-char file_name[10] = "asds";
+char file_name[10] = "start";
 uint8_t string_len;
 bool file_exists = false; //if file does not exist, then write date,
-// time and cycles sections at begin of sheet
+                          // time and cycles sections at begin of sheet
 
 //SD chip select pin
 const int chipSelect = 4;
@@ -43,12 +42,17 @@ uint8_t day_min_val[2];
 
 //interrupt variables
 const byte interrupt_pin = 2;
-volatile int num_cycles = 0;
+volatile int num_cycles  = 0;
 int result;
 int result_old;
-bool kp = false;
+bool kp = true;
 
-bool first_power_on = true;
+bool first_power_on  = true;
+bool led_problem     = true;
+const long interval = 1000;
+unsigned long previous_millis = 0;
+const int led_pin =  5;
+int led_state = LOW;
 
 void setup() {
   // put your setup code here, to run once:
@@ -57,7 +61,7 @@ void setup() {
 #endif
   rtc.begin();
 
-  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(led_pin, OUTPUT);
   //pinMode(button_pin, INPUT_PULLUP); // Enable internal pull-up resistor on pin 5
 
   attachInterrupt(digitalPinToInterrupt(interrupt_pin), cycle_increment, RISING);
@@ -76,16 +80,43 @@ void setup() {
     if (sd_begin == false)
     {
       Serial.println("Card failed, or not present");
-      delay(1000);
     }
   } while (sd_begin == false);
+  led_problem = false;
+  
 #ifdef DEBUG
   Serial.println("card initialized.");
 #endif
 }
 
 void loop()
-{
+{ 
+  
+  // led on pin 5 will blink if a problem occurs
+
+   unsigned long current_millis = millis();
+  led_problem = true;
+  if(led_problem == true && (current_millis - previous_millis >= interval))
+  {
+    previous_millis = current_millis;
+    if(led_state == LOW)
+    {
+      led_state = HIGH;
+    }
+    else
+    {
+      led_state = LOW;
+    }
+  }
+  else if(led_problem == false)
+  {
+    led_state = LOW;  
+  }
+  
+  digitalWrite(led_pin, led_state);
+  Serial.print("Led state: ");
+  Serial.println(led_state);
+  
   t = rtc.getTime();
 
   //If day is changed, then make a new log file
@@ -105,8 +136,8 @@ void loop()
     myFile = SD.open(file_name, FILE_WRITE);
     if (!myFile)
     {
-      warningString += " SD file" + dateStr + " didn't open correctly ";
 #ifdef DEBUG
+      led_problem = true;
       Serial.println("SD file" + dateStr + " didn't open correctly");
 #endif
     }
@@ -171,13 +202,13 @@ void loop()
     }
     if (t.hour == day_min_val[0] && t.min == day_min_val[1])
     {
-      Serial.println("Sati i minuti su jednaki!");
-      delay(500);
+      //Serial.println("Hours and minutes are equal!");
+      delay(100);
     }
     else
     {
       cli();    //disable interrupt
-
+      
       hour_minute = String(t.hour, DEC);
 
       myFile.print(hour_minute);
@@ -200,7 +231,8 @@ void loop()
     }
   }
   //-------------------------------------------
-  //Posle vratiti u if petlju minuta i optimizovati tu petlju (cli, sei) --> cli predugo zadrzava, moze to lepse
+  //Posle vratiti u if petlju minuta i optimizovati tu petlju (cli, sei) --> cli predugo zadrzava
+  
   cli();
   result_old = result;
   result = num_cycles;
@@ -210,6 +242,7 @@ void loop()
     Serial.print("Number of cycles: ");
     Serial.println(num_cycles);
   }
+  
   //-----------------------------------------------
 }
 
@@ -268,4 +301,7 @@ size_t readField(File* file, char* str, size_t size, const char* delim) {
   str[n] = '\0';
   return n;
 }
-
+void problem_led_blink()
+{
+ 
+}
