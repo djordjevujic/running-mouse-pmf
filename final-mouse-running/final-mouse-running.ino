@@ -7,9 +7,13 @@
 #include <SdFat.h>
 #include <DS3231.h>
 
-//include serial while debug mode is ON
-#define DEBUG 1
-#define EVERY_X_MINUTES 6
+#define EVERY_X_MINUTES 1
+
+void led_problem_blink();
+String dateStringPreparation(String str_of_date);
+size_t readField(File* file, char* str, size_t size, const char* delim);
+
+
 
 //SD Card
 SdFat SD;
@@ -23,7 +27,6 @@ Time t;
 char str[16];     //Must hold one line as a field
 size_t n;         //Length of returned field with delimiter
 
-//This string has to be logged via serial port if something went wrong
 String dateStr;
 String full_date_str;
 String hour_minute;
@@ -42,49 +45,55 @@ uint8_t day_min_val[2];
 
 //interrupt variables
 const byte interrupt_pin = 2;
-volatile int num_cycles = 0;
+volatile int num_cycles  = 0;
 int result;
 int result_old;
-bool kp = false;
+bool kp = true;
 
-bool first_power_on = true;
+bool first_power_on  = true;
+bool led_problem     = true;
+const long interval = 500;
+unsigned long previous_millis = 0;
+const int led_pin =  5;
+int led_state = LOW;
 
 void setup() {
-  // put your setup code here, to run once:
-#ifdef DEBUG
+  
   Serial.begin(9600);
-#endif
+  
   rtc.begin();
 
-  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(led_pin, OUTPUT);
   //pinMode(button_pin, INPUT_PULLUP); // Enable internal pull-up resistor on pin 5
-
   attachInterrupt(digitalPinToInterrupt(interrupt_pin), cycle_increment, RISING);
 
   cli(); //disable interrupts
   sei(); //enable interrupts
 
   //SD card test
-#ifdef DEBUG
-  Serial.print("Initializing SD card...");
-#endif
+
   // see if the card is present and can be initialized:
   do
   {
     sd_begin = SD.begin(chipSelect);
     if (sd_begin == false)
     {
-      Serial.println("Card failed, or not present");
-      delay(1000);
+      digitalWrite(led_pin, HIGH);
+      delay(500);
+      digitalWrite(led_pin, LOW);
+      delay(500);
     }
   } while (sd_begin == false);
-#ifdef DEBUG
-  Serial.println("card initialized.");
-#endif
+  led_problem = false;
 }
 
 void loop()
-{
+{ 
+  
+  // led on pin 5 will blink if a problem occurs
+  led_problem_blink();
+  digitalWrite(led_pin, led_state);
+  
   t = rtc.getTime();
 
   //If day is changed, then make a new log file
@@ -94,26 +103,17 @@ void loop()
     dateStr = dateStringPreparation(full_date_str);
 
     string_len = dateStr.length() + 1;
-
     dateStr.toCharArray(file_name, string_len);
-
     file_exists = SD.exists(file_name);
-    Serial.print("File exists: ");
-    Serial.println(file_exists);
 
     myFile = SD.open(file_name, FILE_WRITE);
     if (!myFile)
     {
-      warningString += " SD file" + dateStr + " didn't open correctly ";
-#ifdef DEBUG
-      Serial.println("SD file" + dateStr + " didn't open correctly");
-#endif
+      led_problem = true;
     }
     else
     {
-#ifdef DEBUG
-      Serial.println("myFile OPEN OK");
-#endif
+      led_problem = false;
     }
     if (file_exists == false)
     {
@@ -121,14 +121,16 @@ void loop()
       myFile.println("Interval,Cycles");
     }
     myFile.close();
-
     last_day = t.date;
   }
-
-  //NAPRAVITI: Da se last_min cita iz neke datoteke na SD kartici, ili neko poredjenje i minuta i sata
+  
   if ((t.min % EVERY_X_MINUTES == 0) && (t.min != last_min))
   {
     myFile = SD.open(file_name, FILE_WRITE);
+    if(!myFile)
+      led_problem = true;
+    else
+      led_problem = false;
     //This condition is for case of power losing.
     //Then, Arduino must first check logfile, and in case that there is not data
     //logged with the same hours and minutes, log the newest data.
@@ -139,17 +141,6 @@ void loop()
       while (myFile.available() > 0)
       {
         n = readField(&myFile, str, sizeof(str), "\n");
-        if (n == 0)
-        {
-          Serial.println("To few lines");
-        }
-        else
-        {
-          Serial.print("Size of str: ");
-          Serial.println(n);
-          Serial.print("Str: ");
-          Serial.println(str);
-        }
       }
       char *p   = str;
       uint8_t i = 0;
@@ -158,10 +149,6 @@ void loop()
         if (isdigit(*p) && i < 2)
         {
           day_min_val[i] = strtol(p, &p, 10);
-          Serial.print("dayMinVal[");
-          Serial.print(i);
-          Serial.print("]: ");
-          Serial.println(day_min_val[i]);
           i++;
         }
         else
@@ -170,27 +157,17 @@ void loop()
     }
     if (t.hour == day_min_val[0] && t.min == day_min_val[1])
     {
-      Serial.println("Hours and minutes are equal!");
-      delay(500);
+      delay(100);
     }
     else
     {
       cli();    //disable interrupt
-      
-      hour_minute = String(t.hour, DEC);
 
-      myFile.print(hour_minute);
+      myFile.print(String(t.hour, DEC));
       myFile.print(":");
       myFile.print(String(t.min, DEC));
       myFile.print(",");
       myFile.println(String(num_cycles, DEC));
-
-      Serial.println("Inserted number of cycles: ");
-      Serial.print(String(t.hour, DEC));
-      Serial.print(":");
-      Serial.print(String(t.min, DEC));
-      Serial.print(" - ");
-      Serial.println(String(num_cycles, DEC));
 
       num_cycles = 0;
       sei();   //enable interrupt
@@ -199,15 +176,15 @@ void loop()
     }
   }
   //-------------------------------------------
-  //Posle vratiti u if petlju minuta i optimizovati tu petlju (cli, sei) --> cli predugo zadrzava, moze to lepse
+  //Posle vratiti u if petlju minuta i optimizovati tu petlju (cli, sei) --> cli predugo zadrzava
+  
   cli();
   result_old = result;
   result = num_cycles;
   sei();
   if (result_old != result)
   {
-    Serial.print("Number of cycles: ");
-    Serial.println(num_cycles);
+    
   }
   //-----------------------------------------------
 }
@@ -231,23 +208,17 @@ void cycle_increment()
   }
 }
 
-String dateStringPreparation(String str)
+String dateStringPreparation(String str_of_date)
 {
-#ifdef DEBUG
-  Serial.println(str);
-#endif
   //obrada stringa
-  str.remove(2, 1);
-  str.remove(4, 1);
-  str.remove(4, 1);
-  str.remove(4, 1);
-#ifdef DEBUG
-  Serial.println("Modified string:");
-  str += ".csv";
-  Serial.println(str);
-#endif
+  str_of_date.remove(2, 1);
+  str_of_date.remove(4, 1);
+  str_of_date.remove(4, 1);
+  str_of_date.remove(4, 1);
 
-  return str;
+  str_of_date += ".csv";
+
+  return str_of_date;
 }
 
 //Function for reading one field from CSV file
@@ -267,4 +238,24 @@ size_t readField(File* file, char* str, size_t size, const char* delim) {
   str[n] = '\0';
   return n;
 }
+void led_problem_blink()
+{
+  unsigned long current_millis = millis();
 
+  if(led_problem == true && (current_millis - previous_millis >= interval))
+  {
+    previous_millis = current_millis;
+    if(led_state == LOW)
+    {
+      led_state = HIGH;
+    }
+    else
+    {
+      led_state = LOW;
+    }
+  }
+  else if(led_problem == false)
+  {
+    led_state = LOW;  
+  }
+}
