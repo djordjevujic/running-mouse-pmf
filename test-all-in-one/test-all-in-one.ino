@@ -55,7 +55,7 @@ const int led_pin =  5;
 int led_state = LOW;
 
 void setup() {
-  // put your setup code here, to run once:
+
 #ifdef DEBUG
   Serial.begin(9600);
 #endif
@@ -232,8 +232,8 @@ void loop()
     Serial.print("Number of cycles: ");
     Serial.println(num_cycles);
   }
-  Serial.print("led_problem: ");
-  Serial.println(led_problem);
+  //Serial.print("led_problem: ");
+  //Serial.println(led_problem);
   //-----------------------------------------------
 }
 
