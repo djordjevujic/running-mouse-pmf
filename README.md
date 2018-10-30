@@ -1,5 +1,5 @@
 # running-mouse-pmf
-Project for testing mouse activity and logging data into a csv file on the SD card
+Project for testing mouse/rats activity and logging data into a csv file on the SD card
 
 ## SD card library
 https://github.com/greiman/SdFat
