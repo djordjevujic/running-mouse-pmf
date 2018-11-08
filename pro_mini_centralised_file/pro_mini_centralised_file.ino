@@ -11,7 +11,7 @@
 
 //include serial while debug mode is ON
 #define DEBUG 1
-#define EVERY_X_MINUTES 1
+#define EVERY_X_MINUTES 6
 #define RTC_SET_YEAR 'Y'
 #define RTC_SET_MONTH 'M'
 #define RTC_SET_DAY 'D'
@@ -69,7 +69,7 @@ uint8_t led_pin_cont = 9;
 const int chipSelect = 10; //on uno: 4
 bool sd_begin = false;
 
-uint8_t last_min = 0;
+uint8_t last_min = -1;
 uint8_t last_day = 0;
 //@todo Check size of this array
 uint8_t time_val[6];
@@ -246,71 +246,82 @@ void loop()
       }
 
         myFile.close();
-    
+
         last_day = t.date;
 
-        if (first_power_on == true)
+      if (first_power_on == true)
+      {
+        file_exists = SD.exists(file_name);
+        Serial.print("File exists: ");
+        Serial.println(file_exists);
+    
+        myFile = SD.open(file_name, FILE_WRITE);
+        if (!myFile)
         {
-          file_exists = SD.exists(file_name);
-          Serial.print("File exists: ");
-          Serial.println(file_exists);
-      
-          myFile = SD.open(file_name, FILE_WRITE);
-          if (!myFile)
+          led_problem = true;
+          #ifdef DEBUG     
+          //Serial.println("SD file" + file_name + " didn't open correctly");
+          #endif
+        }
+        else
+        {
+          #ifdef DEBUG
+          Serial.println("myFile OPEN OK");
+          led_problem = false;
+          #endif
+        }
+        
+        first_power_on = false;
+        myFile.rewind();
+
+        //@todo -> this takes much time when file is long
+        // Good option for debugging
+        // Shows if file has too many lines!
+        /*
+        while (myFile.available() > 0)
+        {
+          n = readField(&myFile, line_str, sizeof(line_str), "\n");
+          if (n == 0)
           {
-            led_problem = true;
-            #ifdef DEBUG     
-            //Serial.println("SD file" + file_name + " didn't open correctly");
-            #endif
+            Serial.println("To few lines");
           }
           else
           {
-            #ifdef DEBUG
-            Serial.println("myFile OPEN OK");
-            led_problem = false;
-            #endif
-          }
-          
-          first_power_on = false;
-          myFile.rewind();
-          while (myFile.available() > 0)
-          {
-            n = readField(&myFile, line_str, sizeof(line_str), "\n");
-            if (n == 0)
-            {
-              Serial.println("To few lines");
-            }
-            else
-            {
-              Serial.print("Size of line_str: ");
-              Serial.println(n);
-              Serial.print("line_str: ");
-              Serial.println(line_str);
-            }
-          }
-          char *p   = line_str;
-          uint8_t i = 0;
-          
-          while (*p)
-          {
-            if (isdigit(*p) && i < 6)
-            {
-              time_val[i] = strtol(p, &p, 10);
-              Serial.print("timeVal[");
-              Serial.print(i);
-              Serial.print("]: ");
-              Serial.println(time_val[i]);
-              i++;
-            }
-            else
-              p++;
+            //Serial.print("Size of line_str: ");
+            //Serial.println(n);
+            Serial.print("line_str: ");
+            Serial.println(line_str);
           }
         }
+        */
+        /*
+        char *p   = line_str;
+        uint8_t i = 0;
+
+        //@todo -> delete everything with time_val
+        
+        while (*p)
+        {
+          if (isdigit(*p) && i < 6)
+          {
+            time_val[i] = strtol(p, &p, 10);
+            Serial.print("timeVal[");
+            Serial.print(i);
+            Serial.print("]: ");
+            Serial.println(time_val[i]);
+            i++;
+          }
+          else
+            p++;
+        }
+        */
+      }
       
       //NAPRAVITI: Da se last_min cita iz neke datoteke na SD kartici, ili neko poredjenje i minuta i sata
       //@todo Added t.sec == 0 -> test it
       if ((t.min % EVERY_X_MINUTES == 0) && (t.min != last_min) && (t.sec == 0))
       {
+
         myFile = SD.open(file_name, FILE_WRITE);
         if(!myFile)
           led_problem = true;
@@ -319,14 +330,15 @@ void loop()
         //This condition is for case of power losing.
         //Then, Arduino must first check logfile, and in case that there is not data
         //logged with the same hours and minutes, log the newest data.
-        
+        /*
         if (t.hour == time_val[0] && t.min == time_val[1])
         {
           //Serial.println("Hours and minutes are equal!");
           //delay(100);
         }
-        else
-        {
+        */
+//        else
+//        {
           cli();    //disable interrupt
 
           myFile.print(String(t.year));
@@ -337,10 +349,10 @@ void loop()
           myFile.print(String(t.mon));
           
           myFile.print("-");
-          
-          myFile.print(String(t.date));
+
           if(t.date < 10)
             myFile.print("0");
+          myFile.print(String(t.date));
           
           myFile.print(" ");
 
@@ -388,7 +400,7 @@ void loop()
           sei();   //enable interrupt
           last_min = t.min;
           myFile.close();
-        }
+ //       }
       }
   }
   //ako je sisnuto pause, zatvori datoteku
