@@ -12,6 +12,7 @@
 //include serial while debug mode is ON
 #define DEBUG 1
 #define EVERY_X_MINUTES 6
+
 #define RTC_SET_YEAR 'Y'
 #define RTC_SET_MONTH 'M'
 #define RTC_SET_DAY 'D'
@@ -35,8 +36,8 @@ Time t;
 //Testing existence of minute string in case of power losing
 
 //@todo -> check if size of this string is OKAY
-char line_str[20];     //Must hold one line as a field
-size_t n;         //Length of returned field with delimiter
+//char line_str[20];     //Must hold one line as a field
+//size_t n;         //Length of returned field with delimiter
 
 //This string has to be logged via serial port if something went wrong
 char file_name[13] = "data_log.csv";
@@ -512,7 +513,7 @@ void led_problem_blink()
       //Serial.println(uart_income_byte, DEC);
     
       switch(uart_income_byte)
-      {
+      {        
         case RTC_GET_DATE:
         {
           Serial.println(rtc.getDateStr());
