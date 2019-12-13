@@ -1,0 +1,10 @@
+Parser shall do:
+- Read two lines
+    - Check time difference between them
+    - Insert log while time difference is greater than N minutes
+
+
+- Configurable input path (file which has to be parsed)
+- Configurable output path (generated file with non-measured times)
+- Configurable string for non-measured times
+- Configurable time distance between logs
